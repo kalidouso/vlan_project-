@@ -1,0 +1,13 @@
+- name: Configurer les ports trunk entre les switches
+  hosts: all
+  gather_facts: no
+  vars_files:
+    - vars/vlans.yml
+  tasks:
+    - name: Configurer les interfaces trunk
+      cisco.ios.ios_interface:
+        name: "{{ item }}"
+        mode: trunk
+      loop:
+        - GigabitEthernet0/1
+        - GigabitEthernet0/2

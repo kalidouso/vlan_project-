@@ -1,0 +1,18 @@
+- name: Configurer le routage inter-VLAN
+  hosts: switches_l3
+  gather_facts: no
+  vars_files:
+    - vars/vlans.yml
+  tasks:
+    - name: Configurer les interfaces VLAN
+      cisco.ios.ios_interface:
+        name: "Vlan{{ item.id }}"
+        ip_address: "192.168.{{ item.id }}.1"
+        subnet_mask: "255.255.255.0"
+        state: present
+      loop: "{{ vlans }}"
+
+    - name: Activer le routage IP
+      cisco.ios.ios_config:
+        lines:
+          - "ip routing"

@@ -1,0 +1,12 @@
+- name: Configurer les VLANs sur les switches
+  hosts: switches_l2
+  gather_facts: no
+  vars_files:
+    - vars/vlans.yml
+  tasks:
+    - name: Configurer les VLANs
+      cisco.ios.ios_vlan:
+        vlan_id: "{{ item.id }}"
+        name: "{{ item.name }}"
+        state: present
+      loop: "{{ vlans }}"

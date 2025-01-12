@@ -1,0 +1,9 @@
+vlans:
+  - id: 10
+    name: Administration
+  - id: 20
+    name: Production
+  - id: 30
+    name: Developpement
+  - id: 40
+    name: Invites
