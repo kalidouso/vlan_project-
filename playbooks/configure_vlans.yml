@@ -1,12 +1,47 @@
-- name: Configurer les VLANs sur les switches
-  hosts: switches_l2
-  gather_facts: no
+---
+- name: Configurer les VLANs sur les conteneurs avec IP et FRRouting
+  hosts: all
+  become: yes
   vars_files:
-    - vars/vlans.yml
+    - /home/kal/~ansible/vlan_project-/vars/vlans.yml
+
   tasks:
-    - name: Configurer les VLANs
-      cisco.ios.ios_vlan:
-        vlan_id: "{{ item.id }}"
-        name: "{{ item.name }}"
-        state: present
-      loop: "{{ vlans }}"
+    - name: Créer les interfaces VLAN avec IP
+      ansible.builtin.shell: >
+        ip link delete {{ base_interface }}.{{ item.id }} 2>/dev/null || true &&
+        ip link add link {{ base_interface }} name {{ base_interface }}.{{ item.id }} type vlan id {{ item.id }} &&
+        ip addr flush dev {{ base_interface }}.{{ item.id }} &&
+        ip link set up {{ base_interface }}.{{ item.id }} &&
+        ip addr add {{ item.ip }} dev {{ base_interface }}.{{ item.id }}
+      with_items: "{{ vlans }}"
+      vars:
+        base_interface: eth0
+
+    - name: Configurer les interfaces VLAN dans FRRouting
+      ansible.builtin.shell: >
+        vtysh -c "configure terminal"
+        -c "interface {{ base_interface }}.{{ item.id }}"
+        -c "ip address {{ item.ip }}"
+        -c "exit"
+      with_items: "{{ vlans }}"
+      vars:
+        base_interface: eth0
+
+    - name: Configurer le routage inter-VLAN dans FRRouting
+      ansible.builtin.shell: >
+        vtysh -c "configure terminal"
+        -c "router ospf"
+        -c "network {{ item.subnet }} area 0"
+        -c "exit"
+      with_items: "{{ vlans }}"
+      vars:
+        base_interface: eth0
+
+    - name: Vérifier les interfaces VLAN créées
+      ansible.builtin.command:
+        cmd: ip -d link show
+      register: vlan_interfaces
+
+    - name: Afficher les interfaces VLAN
+      ansible.builtin.debug:
+        var: vlan_interfaces.stdout

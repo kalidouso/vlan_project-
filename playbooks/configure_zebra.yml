@@ -1,0 +1,19 @@
+---
+- name: Configurer et démarrer Zebra et OSPFd
+  hosts: all
+  become: yes
+  tasks:
+    - name: Démarrer le démon Zebra
+      ansible.builtin.shell: >
+        /usr/lib/frr/zebra -d
+      register: zebra_status
+      changed_when: "'Disabling MPLS support' in zebra_status.stdout or zebra_status.rc == 0"
+      failed_when: zebra_status.rc not in [0, 1]
+
+    - name: Activer ospfd dans FRR
+      ansible.builtin.lineinfile:
+        path: /etc/frr/daemons
+        regexp: '^ospfd='
+        line: 'ospfd=yes'
+        state: present
+
