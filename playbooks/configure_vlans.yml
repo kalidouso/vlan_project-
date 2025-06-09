@@ -3,7 +3,7 @@
   hosts: all
   become: yes
   vars_files:
-    - /home/kal/~ansible/vlan_project-/vars/vlans.yml
+    - ../vars/vlans.yml
 
   tasks:
     - name: Créer les interfaces VLAN avec IP
@@ -31,11 +31,13 @@
       ansible.builtin.shell: >
         vtysh -c "configure terminal"
         -c "router ospf"
-        -c "network {{ item.subnet }} area 0"
+        -c "network {{ item.ip }} area 0"
         -c "exit"
       with_items: "{{ vlans }}"
       vars:
         base_interface: eth0
+      when: inventory_hostname == "switchL3"
+
 
     - name: Vérifier les interfaces VLAN créées
       ansible.builtin.command:
