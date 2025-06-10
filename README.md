@@ -21,7 +21,7 @@ Avant de démarrer, assurez-vous que les éléments suivants sont disponibles et
 
 ## Étape 1 : Exécution du Script Initial
 
-Le script `configuration_initiale.sh` a pour objectif :
+Le script `configuration_ssh.sh` a pour objectif :
 
 - La création et la configuration de conteneurs Docker dédiés aux fonctions de routage et de commutation.
 - La mise en place des démons FRRouting (« zebra » et « ospfd »).
