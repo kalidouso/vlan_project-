@@ -72,7 +72,7 @@ vlans:
 
 Pour appliquer les configurations définies :
 
-```bash
+``` bash
 ansible-playbook -i inventory.ini playbooks/configuration_vlans.yml
 ```
 
