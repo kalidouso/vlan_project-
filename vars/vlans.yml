@@ -1,9 +1,13 @@
 vlans:
   - id: 10
     name: Administration
+    ip: 192.168.10.1/24
   - id: 20
     name: Production
+    ip: 192.168.20.1/24
   - id: 30
     name: Developpement
+    ip: 192.168.30.1/24
   - id: 40
     name: Invites
+    ip: 192.168.40.1/24

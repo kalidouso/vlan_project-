@@ -1,55 +1,76 @@
 #!/bin/bash
 
-# Liste des conteneurs à créer
+# Déclaration des conteneurs et ports SSH
 containers=("switchL3" "switchL2-1" "switchL2-2" "switchL2-3")
-ports=(2222 2223 2224 2225)
+ports=(2221 2222 2223 2224)
 
-# Créer et configurer les conteneurs
+# Création ou configuration de chaque conteneur
 for i in "${!containers[@]}"; do
     container=${containers[$i]}
     port=${ports[$i]}
 
-    # Vérifier si le conteneur existe déjà
+    echo "➡️  Traitement du conteneur : ${container}"
+
+    # Vérifie si le conteneur existe
     if [ "$(docker ps -aq -f name=^/${container}$)" ]; then
-        echo "Container ${container} already exists. Skipping creation."
+        if [ "$(docker ps -q -f name=^/${container}$)" ]; then
+            echo "✅ ${container} est déjà en cours d'exécution."
+        else
+            echo "🔄 ${container} existe mais est arrêté. Démarrage..."
+            docker start "$container"
+            sleep 2
+        fi
     else
-        echo "Creating and starting container: ${container} on port ${port}..."
-        docker run -d -p ${port}:22 --name ${container} --privileged frrouting/frr /bin/sh -c "while :; do sleep 10; done"
+        echo "🚀 Création du conteneur ${container} (SSH sur port ${port})..."
+        docker run -d \
+            -p ${port}:22 \
+            --name "$container" \
+            --privileged \
+            frrouting/frr \
+            /bin/sh -c "while :; do sleep 10; done"
+        sleep 2
     fi
 
-    # Configurer SSH et FRRouting dans chaque conteneur
-    echo "Configuring SSH and FRRouting for container: ${container}..."
-    docker exec ${container} sh -c "
-        # Mettre à jour et installer OpenSSH
+    echo "⚙️  Configuration de SSH + FRRouting sur ${container}..."
+
+    docker exec "$container" sh -c '
         apk update &&
-        apk add --no-cache openssh &&
-        
-        # Créer les répertoires nécessaires pour SSH
-        mkdir -p /var/run/sshd &&
-        
-        # Ajouter un utilisateur 'ansible'
+        apk add --no-cache openssh frr &&
+        mkdir -p /var/run/sshd /etc/frr &&
+
+        # Nettoyage PID pour éviter les conflits
+        rm -rf /var/tmp/frr/* /var/run/frr/*.pid
+
+        # Ajout utilisateur ansible si absent
         if ! id -u ansible >/dev/null 2>&1; then
             adduser -D -s /bin/sh ansible &&
-            echo 'ansible:password' | chpasswd &&
+            echo "ansible:password" | chpasswd &&
             mkdir -p /home/ansible/.ssh &&
             chmod 700 /home/ansible/.ssh &&
             chown -R ansible:ansible /home/ansible/.ssh
-        fi &&
-        
-        # Générer les clés hôtes SSH
-        ssh-keygen -A &&
-        
-        # Modifier la configuration SSH pour activer les connexions par mot de passe
-        sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config &&
-        sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
-        
-        # Démarrer le serveur SSH
-        /usr/sbin/sshd &&
+        fi
 
-        # Activer FRRouting
-        /etc/init.d/frr start
-    "
+        # Configuration SSH
+        ssh-keygen -A
+        sed -i "s/#PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
+        sed -i "s/#PasswordAuthentication.*/PasswordAuthentication yes/" /etc/ssh/sshd_config
+        /usr/sbin/sshd
+
+        # Configuration FRR / vtysh
+        echo "service integrated-vtysh-config" > /etc/frr/vtysh.conf
+        chown frr:frr /etc/frr/vtysh.conf
+
+        echo "zebra=yes" > /etc/frr/daemons
+        echo "ospfd=yes" >> /etc/frr/daemons
+
+        # Lancement manuel des démons nécessaires
+        /usr/lib/frr/zebra -d
+        /usr/lib/frr/ospfd -d
+    '
+
+    echo "✅ ${container} configuré avec succès."
+    echo "--------------------------------------------"
 done
 
-echo "All containers are configured and running."
+echo "🎉 Tous les conteneurs sont prêts à l’usage."
 
